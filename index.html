@@ -9,12 +9,13 @@
   <style>
     :root{
       --bg:#ffffff; --fg:#111111; --muted:#666; --accent:#111; --accent-fg:#fff; --shadow:0 10px 30px rgba(0,0,0,.08);
-      --radius:18px;
+      --radius:18px; --card-bg:#fff; --border:#e6e6e6;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color:var(--fg); background:var(--bg);}    
-    .container{max-width:720px;margin:0 auto;padding:28px 20px 90px;}header{position:sticky;top:0;background:linear-gradient(#fff 75%, rgba(255,255,255,.85));backdrop-filter:saturate(180%) blur(6px);z-index:2}
+    body{margin:0;font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color:var(--fg); background:var(--bg);}
+    .container{max-width:720px;margin:0 auto;padding:28px 20px 90px;}
+    header{position:sticky;top:0;background:linear-gradient(#fff 75%, rgba(255,255,255,.85));backdrop-filter:saturate(180%) blur(6px);z-index:2;display:flex;align-items:center;justify-content:space-between;}
 h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 
 .group{margin:22px 0 14px}
@@ -22,7 +23,7 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 .list{display:grid;gap:10px}
 
 .item{display:flex;align-items:center;gap:10px}
-.item a.title{display:inline-flex;align-items:center;gap:10px; padding:10px 14px; border:1.5px solid #e6e6e6; border-radius:14px; text-decoration:none; color:var(--fg); background:#fff; box-shadow: var(--shadow);}    
+.item a.title{display:inline-flex;align-items:center;gap:10px; padding:10px 14px; border:1.5px solid var(--border); border-radius:14px; text-decoration:none; color:var(--fg); background:var(--card-bg); box-shadow: var(--shadow);}
 .item a.title:hover{transform:translateY(-1px); box-shadow:0 14px 30px rgba(0,0,0,.10)}
 
 .chip{appearance:none;border:none;background:#222;color:#fff;border-radius:999px;padding:6px 10px;font-weight:800;font-size:12px;cursor:pointer}
@@ -33,15 +34,15 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 .empty .hint{margin-top:10px}
 
 /* FAB */
-.fab{position:fixed; right:22px; bottom:22px; width:64px; height:64px; border-radius:50%; border:2px solid #111; display:grid; place-items:center; background:#fff; box-shadow:0 10px 30px rgba(0,0,0,.18); cursor:pointer; z-index:3}
+.fab{position:fixed; right:22px; bottom:22px; width:64px; height:64px; border-radius:50%; border:2px solid var(--fg); display:grid; place-items:center; background:var(--card-bg); box-shadow:0 10px 30px rgba(0,0,0,.18); cursor:pointer; z-index:3}
 .fab:active{transform:translateY(1px)}
 .plus{width:28px;height:28px;position:relative}
-.plus::before,.plus::after{content:""; position:absolute; inset:0; margin:auto; background:#111; border-radius:2px}
+.plus::before,.plus::after{content:""; position:absolute; inset:0; margin:auto; background:var(--fg); border-radius:2px}
 .plus::before{width:4px; height:28px}
 .plus::after{width:28px; height:4px}
 
 /* Modal */
-dialog{border:none; border-radius:24px; padding:0; width:min(92vw, 520px); box-shadow:0 30px 80px rgba(0,0,0,.25)}
+dialog{border:none; border-radius:24px; padding:0; width:min(92vw, 520px); box-shadow:0 30px 80px rgba(0,0,0,.25); background:var(--card-bg); color:var(--fg)}
 dialog::backdrop{background:rgba(0,0,0,.25)}
 .modal{padding:22px}
 .modal h3{margin:0 0 14px; font-size:26px}
@@ -60,11 +61,14 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   .fab{right:16px; bottom:16px}
 }
 
+    #settingsBtn{appearance:none;border:none;background:transparent;cursor:pointer;font-size:24px;color:var(--fg);}
+    html.dark{--bg:#111111; --fg:#ffffff; --muted:#aaa; --accent:#ffffff; --accent-fg:#111111; --shadow:0 10px 30px rgba(0,0,0,.5); --card-bg:#1e1e1e; --border:#444444;}
+    html.dark header{background:linear-gradient(#111 75%, rgba(17,17,17,.85));}
   </style>
 </head>
 <body>
   <div class="container">
-    <header><h1>Hub</h1></header>
+    <header><h1>Hub</h1><button id="settingsBtn" aria-label="Settings">⚙️</button></header>
     <main id="root"></main>
     <p class="empty" id="emptyState" hidden>
       Nothing here yet.<br>
@@ -109,9 +113,27 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       </div>
       <p class="mutelink" id="resetDemo" style="margin-top:10px" title="Reset data">Reset (clear all)</p>
     </form>
+  </dialog>  <!-- Settings Modal -->  <dialog id="settingsDlg">
+    <form method="dialog" class="modal" id="settingsForm">
+      <h3>Settings</h3>
+      <div class="field">
+        <button class="btn primary" id="exportBtn" type="button">Export Data</button>
+      </div>
+      <div class="field">
+        <label for="importInput">Import Data</label>
+        <input id="importInput" type="file" accept="application/json" />
+      </div>
+      <div class="field">
+        <button class="btn ghost" id="modeToggle" type="button">Dark Mode</button>
+      </div>
+      <div class="row">
+        <button class="btn ghost" value="close">Close</button>
+      </div>
+    </form>
   </dialog>  <script>
   // -------- Data Layer (localStorage) --------
   const STORE_KEY = 'hubData.v1';
+  const THEME_KEY = 'hubTheme';
   const load = () => JSON.parse(localStorage.getItem(STORE_KEY) || '{"groups":["Personal"],"items":[]}');
   const save = (data) => localStorage.setItem(STORE_KEY, JSON.stringify(data));
   const state = load();
@@ -126,6 +148,11 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const groupForm = document.getElementById('groupForm');
   const groupList = document.getElementById('groupList');
   const fab = document.getElementById('fab');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsDlg = document.getElementById('settingsDlg');
+  const exportBtn = document.getElementById('exportBtn');
+  const importInput = document.getElementById('importInput');
+  const modeToggle = document.getElementById('modeToggle');
 
   const groupSelect = document.getElementById('groupSelect');
   const titleInput = document.getElementById('titleInput');
@@ -135,6 +162,11 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const resetDemo = document.getElementById('resetDemo');
 
   let editingId = null;
+  function applyTheme(){
+    const theme = localStorage.getItem(THEME_KEY) || 'light';
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    modeToggle.textContent = theme === 'dark' ? 'Lite Mode' : 'Dark Mode';
+  }
 
   function ensureProtocol(u){
     try{ const hasProtocol = /^(https?:)?\/\//i.test(u); return hasProtocol ? u : 'https://' + u; }catch{ return u }
@@ -233,6 +265,37 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     linkDlg.showModal();
   });
 
+  settingsBtn.addEventListener('click', ()=>{ settingsDlg.showModal(); });
+
+  exportBtn.addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(state)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'hub-data.json'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  importInput.addEventListener('change', (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const data = JSON.parse(reader.result);
+        if(data && Array.isArray(data.groups) && Array.isArray(data.items)){
+          localStorage.setItem(STORE_KEY, JSON.stringify(data));
+          Object.assign(state, data); render();
+        }else{ alert('Invalid data'); }
+      }catch{ alert('Invalid data'); }
+    };
+    reader.readAsText(file);
+    e.target.value='';
+  });
+
+  modeToggle.addEventListener('click', ()=>{
+    const theme = localStorage.getItem(THEME_KEY) === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(THEME_KEY, theme); applyTheme();
+  });
+
   manageGroupsBtn.addEventListener('click', ()=>{ renderGroupListManager(); groupDlg.showModal(); });
 
   groupForm.addEventListener('close', ()=>{ renderGroupsSelect(); });
@@ -270,7 +333,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   resetDemo.addEventListener('click', ()=>{ if(confirm('Clear all groups and links?')){ localStorage.removeItem(STORE_KEY); Object.assign(state, load()); render(); renderGroupsSelect(); } });
 
   // initial UI
-  render();
+  render(); applyTheme();
 
   // ---------- Register external service worker for proper PWA install ----------
   if('serviceWorker' in navigator){
