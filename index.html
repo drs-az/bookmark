@@ -4,6 +4,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hub</title>
   <meta name="theme-color" content="#111" />
+  <!-- Use a separate manifest for true standalone install (no Chrome badge) -->
+  <link rel="manifest" href="manifest.json" />
   <style>
     :root{
       --bg:#ffffff; --fg:#111111; --muted:#666; --accent:#111; --accent-fg:#fff; --shadow:0 10px 30px rgba(0,0,0,.08);
@@ -18,9 +20,13 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 .group{margin:22px 0 14px}
 .group h2{font-size:24px;margin:18px 2px 10px;font-weight:800}
 .list{display:grid;gap:10px}
-.item a{display:inline-flex;align-items:center;gap:10px; padding:10px 14px; border:1.5px solid #e6e6e6; border-radius:14px; text-decoration:none; color:var(--fg); background:#fff; box-shadow: var(--shadow);}    
-.item a:hover{transform:translateY(-1px); box-shadow:0 14px 30px rgba(0,0,0,.10)}
-.item small{color:var(--muted); overflow:hidden;text-overflow:ellipsis;max-width:100%;white-space:nowrap}
+
+.item{display:flex;align-items:center;gap:10px}
+.item a.title{display:inline-flex;align-items:center;gap:10px; padding:10px 14px; border:1.5px solid #e6e6e6; border-radius:14px; text-decoration:none; color:var(--fg); background:#fff; box-shadow: var(--shadow);}    
+.item a.title:hover{transform:translateY(-1px); box-shadow:0 14px 30px rgba(0,0,0,.10)}
+
+.chip{appearance:none;border:none;background:#222;color:#fff;border-radius:999px;padding:6px 10px;font-weight:800;font-size:12px;cursor:pointer}
+.chip.ghost{background:#444}
 
 /* Empty state */
 .empty{margin:28vh 0 0; text-align:center; color:var(--muted)}
@@ -49,7 +55,6 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 
 .mutelink{font-size:14px; color:var(--muted); text-decoration:underline; cursor:pointer}
 
-/* small screens */
 @media (max-width:420px){
   h1{font-size:38px}
   .fab{right:16px; bottom:16px}
@@ -69,7 +74,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 
   <!-- Add / Edit Link Modal -->  <dialog id="linkDlg">
     <form method="dialog" class="modal" id="linkForm">
-      <h3>Add Link</h3>
+      <h3 id="linkDlgTitle">Add Link</h3>
       <div class="field">
         <label for="groupSelect">Group</label>
         <div style="display:flex; gap:8px; align-items:center">
@@ -116,6 +121,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const emptyState = document.getElementById('emptyState');
   const linkDlg = document.getElementById('linkDlg');
   const linkForm = document.getElementById('linkForm');
+  const linkDlgTitle = document.getElementById('linkDlgTitle');
   const groupDlg = document.getElementById('groupDlg');
   const groupForm = document.getElementById('groupForm');
   const groupList = document.getElementById('groupList');
@@ -128,8 +134,10 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 
   const resetDemo = document.getElementById('resetDemo');
 
+  let editingId = null;
+
   function ensureProtocol(u){
-    try{ const hasProtocol = /^(https?:)?\//i.test(u) || /^http(s)?:\/\//i.test(u); return hasProtocol ? u : 'https://' + u; }catch{ return u }
+    try{ const hasProtocol = /^(https?:)?\/\//i.test(u); return hasProtocol ? u : 'https://' + u; }catch{ return u }
   }
 
   function renderGroupsSelect(){
@@ -146,10 +154,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     state.groups.forEach((g,i)=>{
       const row = document.createElement('div');
       row.className = 'item';
-      row.style.display='flex';
       row.style.gap='8px';
-      row.style.alignItems='center';
-
       const badge = document.createElement('a');
       badge.textContent = g; badge.href = '#'; badge.onclick=(e)=>e.preventDefault();
       badge.style.borderRadius='999px';
@@ -162,7 +167,6 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         const del = document.createElement('button');
         del.className='btn ghost'; del.textContent='Delete';
         del.onclick = (e)=>{ e.preventDefault();
-          // prevent delete if items exist in that group
           const used = state.items.some(it=>it.group===g);
           if(used){ alert('Remove or reassign links in this group first.'); return; }
           state.groups.splice(i,1); save(state); render(); renderGroupListManager(); renderGroupsSelect();
@@ -178,21 +182,42 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     root.innerHTML = '';
     const groupsWithItems = new Set([...state.groups, ...state.items.map(i=>i.group)]);
 
-    if(state.items.length===0){ emptyState.hidden = false; } else { emptyState.hidden = true; }
+    emptyState.hidden = state.items.length!==0;
 
     [...groupsWithItems].forEach(groupName=>{
-      // section
       const section = document.createElement('section');
       section.className='group';
       const h2 = document.createElement('h2'); h2.textContent = groupName; section.appendChild(h2);
       const list = document.createElement('div'); list.className='list';
 
       state.items.filter(i=>i.group===groupName).forEach(i=>{
-        const div = document.createElement('div'); div.className='item';
-        const a = document.createElement('a'); a.href=i.url; a.target='_blank'; a.rel='noopener noreferrer';
-        a.innerHTML = `<span>${i.title}</span>`;
-        const small = document.createElement('small'); small.textContent = i.url; a.appendChild(small);
-        div.appendChild(a); list.appendChild(div);
+        const row = document.createElement('div'); row.className='item';
+
+        // Display Text as a link ONLY
+        const a = document.createElement('a');
+        a.className='title'; a.textContent = i.title; a.href=i.url; a.target='_blank'; a.rel='noopener noreferrer';
+        row.appendChild(a);
+
+        // Edit & Delete chips
+        const editBtn = document.createElement('button'); editBtn.className='chip'; editBtn.textContent='Edit';
+        editBtn.onclick = ()=>{
+          editingId = i.id;
+          renderGroupsSelect();
+          groupSelect.value = i.group;
+          titleInput.value = i.title; urlInput.value = i.url;
+          linkDlgTitle.textContent = 'Edit Link';
+          linkDlg.showModal();
+        };
+        row.appendChild(editBtn);
+
+        const delBtn = document.createElement('button'); delBtn.className='chip ghost'; delBtn.textContent='Delete';
+        delBtn.onclick = ()=>{
+          const idx = state.items.findIndex(x=>x.id===i.id);
+          if(idx>-1){ state.items.splice(idx,1); save(state); render(); }
+        };
+        row.appendChild(delBtn);
+
+        list.appendChild(row);
       });
 
       section.appendChild(list); root.appendChild(section);
@@ -202,6 +227,8 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   // ----- Events -----
   fab.addEventListener('click', ()=>{
     renderGroupsSelect();
+    editingId = null;
+    linkDlgTitle.textContent = 'Add Link';
     titleInput.value=''; urlInput.value='';
     linkDlg.showModal();
   });
@@ -227,52 +254,30 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     let url = ensureProtocol(urlInput.value.trim());
     if(!group || !title || !url) return;
     if(!state.groups.includes(group)) state.groups.push(group);
-    state.items.push({ id: Date.now(), group, title, url });
+
+    if(editingId){
+      const item = state.items.find(x=>x.id===editingId);
+      if(item){ item.group = group; item.title = title; item.url = url; }
+    }else{
+      state.items.push({ id: Date.now(), group, title, url });
+    }
+
     save(state); render(); linkDlg.close();
   });
+
+  linkDlg.addEventListener('close', ()=>{ editingId=null; });
 
   resetDemo.addEventListener('click', ()=>{ if(confirm('Clear all groups and links?')){ localStorage.removeItem(STORE_KEY); Object.assign(state, load()); render(); renderGroupsSelect(); } });
 
   // initial UI
   render();
 
-  // ---------- Minimal PWA bootstrapping (manifest + sw created at runtime) ----------
-  (function createManifestAndSW(){
-    // data URL SVG icon (simple plus in circle)
-    const svg = `<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 192 192\"><circle cx=\"96\" cy=\"96\" r=\"88\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"12\"/><path d=\"M96 44v104M44 96h104\" stroke=\"#111\" stroke-width=\"12\" stroke-linecap=\"round\"/></svg>`;
-    const iconURL = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
-
-    const manifest = {
-      name: 'Hub', short_name: 'Hub', start_url: '.', display: 'standalone',
-      background_color: '#ffffff', theme_color: '#111111',
-      icons: [
-        { src: iconURL, sizes: '192x192', type: 'image/svg+xml', purpose:'any maskable' }
-      ]
-    };
-    const mBlob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
-    const mURL = URL.createObjectURL(mBlob);
-    const link = document.createElement('link'); link.rel='manifest'; link.href=mURL; document.head.appendChild(link);
-
-    if('serviceWorker' in navigator){
-      const swCode = `
-        const CACHE = 'hub-cache-v1';
-        const ASSETS = ['.', location.href];
-        self.addEventListener('install', e=>{
-          e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
-        });
-        self.addEventListener('activate', e=>{ e.waitUntil(self.clients.claim()); });
-        self.addEventListener('fetch', e=>{
-          e.respondWith(
-            caches.match(e.request).then(r=> r || fetch(e.request).then(resp=>{
-              const copy = resp.clone();
-              caches.open(CACHE).then(c=>c.put(e.request, copy));
-              return resp;
-            }).catch(()=> caches.match('./')))
-          );
-        });`;
-      const swURL = URL.createObjectURL(new Blob([swCode], {type:'text/javascript'}));
-      navigator.serviceWorker.register(swURL);
-    }
-  })();
-  </script></body>
+  // ---------- Register external service worker for proper PWA install ----------
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js');
+    });
+  }
+  </script>
+</body>
 </html>
