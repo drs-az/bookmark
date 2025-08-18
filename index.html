@@ -1,1 +1,278 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hub</title>
+  <meta name="theme-color" content="#111" />
+  <style>
+    :root{
+      --bg:#ffffff; --fg:#111111; --muted:#666; --accent:#111; --accent-fg:#fff; --shadow:0 10px 30px rgba(0,0,0,.08);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color:var(--fg); background:var(--bg);}    
+    .container{max-width:720px;margin:0 auto;padding:28px 20px 90px;}header{position:sticky;top:0;background:linear-gradient(#fff 75%, rgba(255,255,255,.85));backdrop-filter:saturate(180%) blur(6px);z-index:2}
+h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 
+.group{margin:22px 0 14px}
+.group h2{font-size:24px;margin:18px 2px 10px;font-weight:800}
+.list{display:grid;gap:10px}
+.item a{display:inline-flex;align-items:center;gap:10px; padding:10px 14px; border:1.5px solid #e6e6e6; border-radius:14px; text-decoration:none; color:var(--fg); background:#fff; box-shadow: var(--shadow);}    
+.item a:hover{transform:translateY(-1px); box-shadow:0 14px 30px rgba(0,0,0,.10)}
+.item small{color:var(--muted); overflow:hidden;text-overflow:ellipsis;max-width:100%;white-space:nowrap}
+
+/* Empty state */
+.empty{margin:28vh 0 0; text-align:center; color:var(--muted)}
+.empty .hint{margin-top:10px}
+
+/* FAB */
+.fab{position:fixed; right:22px; bottom:22px; width:64px; height:64px; border-radius:50%; border:2px solid #111; display:grid; place-items:center; background:#fff; box-shadow:0 10px 30px rgba(0,0,0,.18); cursor:pointer; z-index:3}
+.fab:active{transform:translateY(1px)}
+.plus{width:28px;height:28px;position:relative}
+.plus::before,.plus::after{content:""; position:absolute; inset:0; margin:auto; background:#111; border-radius:2px}
+.plus::before{width:4px; height:28px}
+.plus::after{width:28px; height:4px}
+
+/* Modal */
+dialog{border:none; border-radius:24px; padding:0; width:min(92vw, 520px); box-shadow:0 30px 80px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(0,0,0,.25)}
+.modal{padding:22px}
+.modal h3{margin:0 0 14px; font-size:26px}
+.field{margin:14px 0}
+label{display:block; font-weight:700; margin:0 0 8px}
+input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px solid #d9d9d9; background:#fafafa; font:inherit}
+.row{display:flex; gap:12px; flex-wrap:wrap; margin-top:18px}
+.btn{appearance:none; border:none; padding:12px 16px; border-radius:14px; font-weight:800; cursor:pointer}
+.btn.primary{background:var(--accent); color:var(--accent-fg)}
+.btn.ghost{background:#eee; color:#111}
+
+.mutelink{font-size:14px; color:var(--muted); text-decoration:underline; cursor:pointer}
+
+/* small screens */
+@media (max-width:420px){
+  h1{font-size:38px}
+  .fab{right:16px; bottom:16px}
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header><h1>Hub</h1></header>
+    <main id="root"></main>
+    <p class="empty" id="emptyState" hidden>
+      Nothing here yet.<br>
+      <span class="hint">Tap the <strong>+</strong> to add your first link.</span>
+    </p>
+  </div><button class="fab" id="fab" aria-label="Add link"><span class="plus" aria-hidden="true"></span></button>
+
+  <!-- Add / Edit Link Modal -->  <dialog id="linkDlg">
+    <form method="dialog" class="modal" id="linkForm">
+      <h3>Add Link</h3>
+      <div class="field">
+        <label for="groupSelect">Group</label>
+        <div style="display:flex; gap:8px; align-items:center">
+          <select id="groupSelect" required></select>
+          <button class="btn ghost" id="manageGroupsBtn" type="button" title="Manage groups">Manage</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="titleInput">Display Text</label>
+        <input id="titleInput" placeholder="e.g., Task List" required />
+      </div>
+      <div class="field">
+        <label for="urlInput">Link</label>
+        <input id="urlInput" placeholder="https://…" inputmode="url" required />
+      </div>
+      <div class="row">
+        <button class="btn primary" value="save">Save</button>
+        <button class="btn ghost" value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>  <!-- Group Manager Modal -->  <dialog id="groupDlg">
+    <form method="dialog" class="modal" id="groupForm">
+      <h3>Groups</h3>
+      <div id="groupList" class="list" style="margin:8px 0 14px"></div>
+      <div class="field">
+        <label for="newGroup">New Group</label>
+        <input id="newGroup" placeholder="e.g., Personal" />
+      </div>
+      <div class="row">
+        <button class="btn primary" value="add">Add</button>
+        <button class="btn ghost" value="close">Close</button>
+      </div>
+      <p class="mutelink" id="resetDemo" style="margin-top:10px" title="Reset data">Reset (clear all)</p>
+    </form>
+  </dialog>  <script>
+  // -------- Data Layer (localStorage) --------
+  const STORE_KEY = 'hubData.v1';
+  const load = () => JSON.parse(localStorage.getItem(STORE_KEY) || '{"groups":["Personal"],"items":[]}');
+  const save = (data) => localStorage.setItem(STORE_KEY, JSON.stringify(data));
+  const state = load();
+
+  // --------- UI Refs ---------
+  const root = document.getElementById('root');
+  const emptyState = document.getElementById('emptyState');
+  const linkDlg = document.getElementById('linkDlg');
+  const linkForm = document.getElementById('linkForm');
+  const groupDlg = document.getElementById('groupDlg');
+  const groupForm = document.getElementById('groupForm');
+  const groupList = document.getElementById('groupList');
+  const fab = document.getElementById('fab');
+
+  const groupSelect = document.getElementById('groupSelect');
+  const titleInput = document.getElementById('titleInput');
+  const urlInput = document.getElementById('urlInput');
+  const manageGroupsBtn = document.getElementById('manageGroupsBtn');
+
+  const resetDemo = document.getElementById('resetDemo');
+
+  function ensureProtocol(u){
+    try{ const hasProtocol = /^(https?:)?\//i.test(u) || /^http(s)?:\/\//i.test(u); return hasProtocol ? u : 'https://' + u; }catch{ return u }
+  }
+
+  function renderGroupsSelect(){
+    groupSelect.innerHTML = '';
+    state.groups.forEach(g=>{
+      const opt = document.createElement('option');
+      opt.value = g; opt.textContent = g; groupSelect.appendChild(opt);
+    });
+  }
+
+  function renderGroupListManager(){
+    groupList.innerHTML = '';
+    if(!state.groups.length){ state.groups.push('General'); }
+    state.groups.forEach((g,i)=>{
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.style.display='flex';
+      row.style.gap='8px';
+      row.style.alignItems='center';
+
+      const badge = document.createElement('a');
+      badge.textContent = g; badge.href = '#'; badge.onclick=(e)=>e.preventDefault();
+      badge.style.borderRadius='999px';
+      badge.style.padding='8px 12px';
+      badge.style.border='1.5px solid #e6e6e6';
+      badge.style.fontWeight='700';
+      row.appendChild(badge);
+
+      if(state.groups.length>1){
+        const del = document.createElement('button');
+        del.className='btn ghost'; del.textContent='Delete';
+        del.onclick = (e)=>{ e.preventDefault();
+          // prevent delete if items exist in that group
+          const used = state.items.some(it=>it.group===g);
+          if(used){ alert('Remove or reassign links in this group first.'); return; }
+          state.groups.splice(i,1); save(state); render(); renderGroupListManager(); renderGroupsSelect();
+        };
+        row.appendChild(del);
+      }
+
+      groupList.appendChild(row);
+    });
+  }
+
+  function render(){
+    root.innerHTML = '';
+    const groupsWithItems = new Set([...state.groups, ...state.items.map(i=>i.group)]);
+
+    if(state.items.length===0){ emptyState.hidden = false; } else { emptyState.hidden = true; }
+
+    [...groupsWithItems].forEach(groupName=>{
+      // section
+      const section = document.createElement('section');
+      section.className='group';
+      const h2 = document.createElement('h2'); h2.textContent = groupName; section.appendChild(h2);
+      const list = document.createElement('div'); list.className='list';
+
+      state.items.filter(i=>i.group===groupName).forEach(i=>{
+        const div = document.createElement('div'); div.className='item';
+        const a = document.createElement('a'); a.href=i.url; a.target='_blank'; a.rel='noopener noreferrer';
+        a.innerHTML = `<span>${i.title}</span>`;
+        const small = document.createElement('small'); small.textContent = i.url; a.appendChild(small);
+        div.appendChild(a); list.appendChild(div);
+      });
+
+      section.appendChild(list); root.appendChild(section);
+    });
+  }
+
+  // ----- Events -----
+  fab.addEventListener('click', ()=>{
+    renderGroupsSelect();
+    titleInput.value=''; urlInput.value='';
+    linkDlg.showModal();
+  });
+
+  manageGroupsBtn.addEventListener('click', ()=>{ renderGroupListManager(); groupDlg.showModal(); });
+
+  groupForm.addEventListener('close', ()=>{ renderGroupsSelect(); });
+  groupForm.addEventListener('submit', (e)=>{
+    const action = e.submitter?.value; // add / close
+    if(action==='add'){
+      e.preventDefault();
+      const name = document.getElementById('newGroup').value.trim();
+      if(!name) return;
+      if(!state.groups.includes(name)) state.groups.push(name);
+      document.getElementById('newGroup').value=''; save(state); render(); renderGroupListManager(); renderGroupsSelect();
+    }
+  });
+
+  linkForm.addEventListener('submit', (e)=>{
+    const action = e.submitter?.value; if(action!=='save') return; e.preventDefault();
+    const group = groupSelect.value.trim();
+    const title = titleInput.value.trim();
+    let url = ensureProtocol(urlInput.value.trim());
+    if(!group || !title || !url) return;
+    if(!state.groups.includes(group)) state.groups.push(group);
+    state.items.push({ id: Date.now(), group, title, url });
+    save(state); render(); linkDlg.close();
+  });
+
+  resetDemo.addEventListener('click', ()=>{ if(confirm('Clear all groups and links?')){ localStorage.removeItem(STORE_KEY); Object.assign(state, load()); render(); renderGroupsSelect(); } });
+
+  // initial UI
+  render();
+
+  // ---------- Minimal PWA bootstrapping (manifest + sw created at runtime) ----------
+  (function createManifestAndSW(){
+    // data URL SVG icon (simple plus in circle)
+    const svg = `<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 192 192\"><circle cx=\"96\" cy=\"96\" r=\"88\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"12\"/><path d=\"M96 44v104M44 96h104\" stroke=\"#111\" stroke-width=\"12\" stroke-linecap=\"round\"/></svg>`;
+    const iconURL = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+
+    const manifest = {
+      name: 'Hub', short_name: 'Hub', start_url: '.', display: 'standalone',
+      background_color: '#ffffff', theme_color: '#111111',
+      icons: [
+        { src: iconURL, sizes: '192x192', type: 'image/svg+xml', purpose:'any maskable' }
+      ]
+    };
+    const mBlob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
+    const mURL = URL.createObjectURL(mBlob);
+    const link = document.createElement('link'); link.rel='manifest'; link.href=mURL; document.head.appendChild(link);
+
+    if('serviceWorker' in navigator){
+      const swCode = `
+        const CACHE = 'hub-cache-v1';
+        const ASSETS = ['.', location.href];
+        self.addEventListener('install', e=>{
+          e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
+        });
+        self.addEventListener('activate', e=>{ e.waitUntil(self.clients.claim()); });
+        self.addEventListener('fetch', e=>{
+          e.respondWith(
+            caches.match(e.request).then(r=> r || fetch(e.request).then(resp=>{
+              const copy = resp.clone();
+              caches.open(CACHE).then(c=>c.put(e.request, copy));
+              return resp;
+            }).catch(()=> caches.match('./')))
+          );
+        });`;
+      const swURL = URL.createObjectURL(new Blob([swCode], {type:'text/javascript'}));
+      navigator.serviceWorker.register(swURL);
+    }
+  })();
+  </script></body>
+</html>
