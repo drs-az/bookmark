@@ -138,6 +138,9 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       <div class="field">
         <button class="btn primary" id="updateBtn" type="button">Update Hub</button>
       </div>
+      <div class="field">
+        <button class="btn ghost" id="wipeBtn" type="button">Wipe Data</button>
+      </div>
       <div class="row">
         <button class="btn ghost" value="close">Close</button>
       </div>
@@ -199,6 +202,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const importInput = document.getElementById('importInput');
   const modeToggle = document.getElementById('modeToggle');
   const updateBtn = document.getElementById('updateBtn');
+  const wipeBtn = document.getElementById('wipeBtn');
   const pass1 = document.getElementById('pass1');
   const pass2 = document.getElementById('pass2');
   const savePasscodeBtn = document.getElementById('savePasscodeBtn');
@@ -397,6 +401,22 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       await Promise.all(regs.map(r=>r.update()));
     }
     location.reload();
+  });
+
+  wipeBtn.addEventListener('click', ()=>{
+    if(confirm('Clear all Hub data?')){
+      localStorage.removeItem(STORE_KEY);
+      localStorage.removeItem(PASS_KEY);
+      localStorage.removeItem(THEME_KEY);
+      removePasscodeBtn.hidden = true;
+      pass1.value = pass2.value = '';
+      settingsDlg.close();
+      Object.assign(state, load());
+      render();
+      renderGroupsSelect();
+      applyTheme();
+      showInfo('Data wiped');
+    }
   });
 
   passcodeForm.addEventListener('submit', async (e)=>{
