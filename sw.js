@@ -1,4 +1,4 @@
-  const CACHE = 'hub-cache-v1';
+  const CACHE = 'hub-cache-v2';
   const CORE = [
     './',
     './index.html',
