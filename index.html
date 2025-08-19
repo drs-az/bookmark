@@ -123,6 +123,15 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         <label for="importInput">Import Data</label>
         <input id="importInput" type="file" accept="application/json" />
       </div>
+      <div class="field" id="passcodeField">
+        <label for="pass1">Passcode</label>
+        <input type="password" pattern="\d{6}" id="pass1" placeholder="6-digit passcode" />
+        <input type="password" pattern="\d{6}" id="pass2" placeholder="Confirm" style="margin-top:8px" />
+        <div class="row">
+          <button class="btn primary" id="savePasscodeBtn" type="button">Save Passcode</button>
+          <button class="btn ghost" id="removePasscodeBtn" type="button" hidden>Remove Passcode</button>
+        </div>
+      </div>
       <div class="field">
         <button class="btn ghost" id="modeToggle" type="button">Dark Mode</button>
       </div>
@@ -130,13 +139,46 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         <button class="btn ghost" value="close">Close</button>
       </div>
     </form>
+  </dialog>  <!-- Passcode Dialog -->  <dialog id="passcodeDlg">
+    <form method="dialog" class="modal" id="passcodeForm">
+      <h3>Enter Passcode</h3>
+      <div class="field">
+        <label for="passcodeInput">Passcode</label>
+        <input type="password" pattern="\d{6}" id="passcodeInput" />
+      </div>
+      <p class="mutelink" id="passErr" hidden style="color:red">Incorrect passcode</p>
+      <div class="row">
+        <button class="btn primary" value="ok">Unlock</button>
+        <button class="btn ghost" value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>  <!-- Message Dialog -->  <dialog id="msgDlg">
+    <form method="dialog" class="modal">
+      <p id="msgText" style="margin:0"></p>
+      <div class="row">
+        <button class="btn primary" value="ok">OK</button>
+      </div>
+    </form>
   </dialog>  <script>
   // -------- Data Layer (localStorage) --------
   const STORE_KEY = 'hubData.v1';
   const THEME_KEY = 'hubTheme';
+  const PASS_KEY = 'hubPass';
   const load = () => JSON.parse(localStorage.getItem(STORE_KEY) || '{"groups":["Personal"],"items":[]}');
   const save = (data) => localStorage.setItem(STORE_KEY, JSON.stringify(data));
   const state = load();
+  const hashPass = async(p)=>{
+    const buf = new TextEncoder().encode(p);
+    const digest = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  };
+  const setPasscode = async(p)=>{
+    const h = await hashPass(p); localStorage.setItem(PASS_KEY, h);
+  };
+  const clearPasscode = ()=> localStorage.removeItem(PASS_KEY);
+  const verifyPasscode = async(p)=>{
+    const h = await hashPass(p); return h === localStorage.getItem(PASS_KEY);
+  };
 
   // --------- UI Refs ---------
   const root = document.getElementById('root');
@@ -153,6 +195,17 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const exportBtn = document.getElementById('exportBtn');
   const importInput = document.getElementById('importInput');
   const modeToggle = document.getElementById('modeToggle');
+  const pass1 = document.getElementById('pass1');
+  const pass2 = document.getElementById('pass2');
+  const savePasscodeBtn = document.getElementById('savePasscodeBtn');
+  const removePasscodeBtn = document.getElementById('removePasscodeBtn');
+  const passcodeDlg = document.getElementById('passcodeDlg');
+  const passcodeForm = document.getElementById('passcodeForm');
+  const passcodeInput = document.getElementById('passcodeInput');
+  const passErr = document.getElementById('passErr');
+  const appContainer = document.querySelector('.container');
+  const msgDlg = document.getElementById('msgDlg');
+  const msgText = document.getElementById('msgText');
 
   const groupSelect = document.getElementById('groupSelect');
   const titleInput = document.getElementById('titleInput');
@@ -162,6 +215,29 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const resetDemo = document.getElementById('resetDemo');
 
   let editingId = null;
+  let unlocked = true;
+  let passAttempts = 0;
+  const passHash = localStorage.getItem(PASS_KEY);
+  if(passHash){
+    unlocked = false;
+    appContainer.style.display='none';
+    fab.style.display='none';
+    exportBtn.disabled = true;
+    passcodeDlg.showModal();
+  }
+  function showMsg(text){
+    msgText.textContent = text;
+    if(msgDlg.open) msgDlg.close();
+    msgDlg.showModal();
+  }
+  msgDlg.addEventListener('close', ()=>{ msgText.textContent=''; });
+  function unlock(){
+    unlocked = true;
+    appContainer.style.display='';
+    fab.style.display='';
+    exportBtn.disabled = false;
+    render();
+  }
   function applyTheme(){
     const theme = localStorage.getItem(THEME_KEY) || 'light';
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -265,15 +341,51 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     linkDlg.showModal();
   });
 
-  settingsBtn.addEventListener('click', ()=>{ settingsDlg.showModal(); });
+  settingsBtn.addEventListener('click', ()=>{ removePasscodeBtn.hidden = !localStorage.getItem(PASS_KEY); settingsDlg.showModal(); });
 
   exportBtn.addEventListener('click', ()=>{
+    if(!unlocked) return;
     const blob = new Blob([JSON.stringify(state)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'hub-data.json'; a.click();
     URL.revokeObjectURL(url);
   });
+
+  savePasscodeBtn.addEventListener('click', async ()=>{
+    const p1 = pass1.value.trim();
+    const p2 = pass2.value.trim();
+    if(p1!==p2){ showMsg('Passcodes must match'); return; }
+    if(!/^\d{6}$/.test(p1)){ showMsg('Passcode must be exactly six digits'); return; }
+    await setPasscode(p1);
+    pass1.value = pass2.value = '';
+    removePasscodeBtn.hidden = false;
+    showMsg('Passcode saved');
+  });
+
+  removePasscodeBtn.addEventListener('click', ()=>{
+    clearPasscode();
+    removePasscodeBtn.hidden = true;
+    showMsg('Passcode removed');
+  });
+
+  passcodeForm.addEventListener('submit', async (e)=>{
+    const action = e.submitter?.value; if(action!=='ok') return;
+    e.preventDefault();
+    const pwd = passcodeInput.value.trim();
+    if(await verifyPasscode(pwd)){
+      passErr.hidden = true;
+      passcodeInput.value='';
+      passcodeDlg.close();
+      unlock();
+    }else{
+      passErr.hidden = false;
+      passcodeInput.value='';
+      passAttempts++; if(passAttempts>=3){ passErr.textContent='Too many attempts'; passcodeInput.disabled=true; }
+    }
+  });
+
+  passcodeDlg.addEventListener('close', ()=>{ if(!unlocked) passcodeDlg.showModal(); });
 
   importInput.addEventListener('change', (e)=>{
     const file = e.target.files[0]; if(!file) return;
@@ -333,7 +445,8 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   resetDemo.addEventListener('click', ()=>{ if(confirm('Clear all groups and links?')){ localStorage.removeItem(STORE_KEY); Object.assign(state, load()); render(); renderGroupsSelect(); } });
 
   // initial UI
-  render(); applyTheme();
+  if(unlocked) render();
+  applyTheme();
 
   // ---------- Register external service worker for proper PWA install ----------
   if('serviceWorker' in navigator){
