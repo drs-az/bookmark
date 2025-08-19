@@ -152,6 +152,13 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         <button class="btn ghost" value="cancel">Cancel</button>
       </div>
     </form>
+  </dialog>  <!-- Info Modal -->  <dialog id="infoDlg">
+    <form method="dialog" class="modal">
+      <p id="infoMsg" style="margin:14px 0"></p>
+      <div class="row">
+        <button class="btn primary" value="ok">OK</button>
+      </div>
+    </form>
   </dialog>  <script>
   // -------- Data Layer (localStorage) --------
   const STORE_KEY = 'hubData.v1';
@@ -196,6 +203,8 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const passcodeForm = document.getElementById('passcodeForm');
   const passcodeInput = document.getElementById('passcodeInput');
   const passErr = document.getElementById('passErr');
+  const infoDlg = document.getElementById('infoDlg');
+  const infoMsg = document.getElementById('infoMsg');
   const appContainer = document.querySelector('.container');
 
   const groupSelect = document.getElementById('groupSelect');
@@ -231,6 +240,11 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 
   function ensureProtocol(u){
     try{ const hasProtocol = /^(https?:)?\/\//i.test(u); return hasProtocol ? u : 'https://' + u; }catch{ return u }
+  }
+
+  function showInfo(msg){
+    infoMsg.textContent = msg;
+    infoDlg.showModal();
   }
 
   function renderGroupsSelect(){
@@ -340,18 +354,18 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   savePasscodeBtn.addEventListener('click', async ()=>{
     const p1 = pass1.value.trim();
     const p2 = pass2.value.trim();
-    if(p1!==p2){ alert('Passcodes must match'); return; }
-    if(!/^\d{6}$/.test(p1)){ alert('Passcode must be exactly six digits'); return; }
+    if(p1!==p2){ showInfo('Passcodes must match'); return; }
+    if(!/^\d{6}$/.test(p1)){ showInfo('Passcode must be exactly six digits'); return; }
     await setPasscode(p1);
     pass1.value = pass2.value = '';
     removePasscodeBtn.hidden = false;
-    alert('Passcode saved');
+    showInfo('Passcode saved');
   });
 
   removePasscodeBtn.addEventListener('click', ()=>{
     clearPasscode();
     removePasscodeBtn.hidden = true;
-    alert('Passcode removed');
+    showInfo('Passcode removed');
   });
 
   passcodeForm.addEventListener('submit', async (e)=>{
