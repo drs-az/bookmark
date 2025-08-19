@@ -135,6 +135,9 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       <div class="field">
         <button class="btn ghost" id="modeToggle" type="button">Dark Mode</button>
       </div>
+      <div class="field">
+        <button class="btn primary" id="updateBtn" type="button">Update Hub</button>
+      </div>
       <div class="row">
         <button class="btn ghost" value="close">Close</button>
       </div>
@@ -195,6 +198,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const exportBtn = document.getElementById('exportBtn');
   const importInput = document.getElementById('importInput');
   const modeToggle = document.getElementById('modeToggle');
+  const updateBtn = document.getElementById('updateBtn');
   const pass1 = document.getElementById('pass1');
   const pass2 = document.getElementById('pass2');
   const savePasscodeBtn = document.getElementById('savePasscodeBtn');
@@ -268,7 +272,21 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       badge.style.padding='8px 12px';
       badge.style.border='1.5px solid #e6e6e6';
       badge.style.fontWeight='700';
+      badge.style.textDecoration='none';
+      badge.style.color='#fff';
       row.appendChild(badge);
+
+      const edit = document.createElement('button');
+      edit.className='btn ghost'; edit.textContent='Edit';
+      edit.onclick = (e)=>{ e.preventDefault();
+        const newName = prompt('Rename group', g)?.trim();
+        if(!newName || newName===g) return;
+        if(state.groups.includes(newName)){ alert('Group name already exists'); return; }
+        state.groups[i] = newName;
+        state.items.forEach(it=>{ if(it.group===g) it.group = newName; });
+        save(state); render(); renderGroupListManager(); renderGroupsSelect();
+      };
+      row.appendChild(edit);
 
       if(state.groups.length>1){
         const del = document.createElement('button');
@@ -366,6 +384,19 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     clearPasscode();
     removePasscodeBtn.hidden = true;
     showInfo('Passcode removed');
+  });
+
+  updateBtn.addEventListener('click', async ()=>{
+    settingsDlg.close();
+    if('caches' in window){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.update()));
+    }
+    location.reload();
   });
 
   passcodeForm.addEventListener('submit', async (e)=>{
