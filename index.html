@@ -33,7 +33,9 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
 .card{position:relative;padding:16px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--card-bg);box-shadow:var(--shadow);cursor:pointer;aspect-ratio:1}
 .card .title{font-weight:700;margin-bottom:8px;margin-right:40px}
-.card .count{position:absolute;top:8px;right:8px;font-size:14px;font-weight:700;background:var(--accent);color:var(--accent-fg);border-radius:999px;padding:2px 8px}
+
+.card .count{position:absolute;top:8px;right:8px;font-size:14px;font-weight:700;background:#fff;color:#000;border-radius:999px;padding:2px 8px}
+
 .linkRow{display:flex;align-items:center;gap:8px}
 .openBtn{appearance:none;border:none;border-radius:8px;background:transparent;padding:8px 10px;cursor:pointer}
 .linkTitle{flex:1;text-align:left;appearance:none;border:1.5px solid var(--border);border-radius:8px;background:var(--card-bg);padding:8px;cursor:pointer;font:inherit;color:var(--fg)}
@@ -65,6 +67,8 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
 .btn.ghost{background:#eee; color:#111}
 .actions .btn{flex:1}
 
+#settingsForm .btn{background:#eee;color:#000}
+
 #categoryColor{position:absolute;top:16px;right:16px;width:32px;height:32px;border:none;padding:0;background:transparent;cursor:pointer}
 
 .mutelink{font-size:14px; color:var(--muted); text-decoration:underline; cursor:pointer}
@@ -77,6 +81,9 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
     #settingsBtn{appearance:none;border:none;background:transparent;cursor:pointer;font-size:24px;color:var(--fg);}
     html.dark{--bg:#111111; --fg:#ffffff; --muted:#aaa; --accent:#ffffff; --accent-fg:#111111; --shadow:0 10px 30px rgba(0,0,0,.5); --card-bg:#1e1e1e; --border:#444444;}
     html.dark header{background:linear-gradient(#111 75%, rgba(17,17,17,.85));}
+    html.dark .card .title{color:#000}
+    html.dark .linkTitle{background:#ccc;color:#000}
+    html.dark #settingsForm .btn{background:#ccc;color:#000}
   </style>
 </head>
 <body>
@@ -125,7 +132,9 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       <p id="previewNotes" style="margin-bottom:16px;white-space:pre-wrap"></p>
       <div class="row actions">
         <button class="btn ghost" id="openLinkBtn" type="button">Open</button>
-        <button class="btn ghost" id="copyLinkBtn" type="button">Copy Link</button>
+
+        <button class="btn ghost" id="copyLinkBtn" type="button">Copy</button>
+
         <button class="btn ghost" id="shareLinkBtn" type="button">Share</button>
         <button class="btn ghost" id="editLinkBtn" type="button">Edit</button>
         <button class="btn ghost" id="deleteLinkBtn" type="button">Delete</button>
@@ -303,6 +312,9 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
   let editingId = null;
   let previewId = null;
   let currentCategory = null;
+
+  let returnToCategory = false;
+
   let unlocked = true;
   let passAttempts = 0;
   const passHash = localStorage.getItem(PASS_KEY);
@@ -388,6 +400,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
 
     previewNotes.textContent = item.notes || '';
     previewNotes.hidden = !item.notes;
+    returnToCategory = true;
 
     previewDlg.showModal();
   }
@@ -462,6 +475,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       const bg = state.groupColors[groupName];
       if(bg) card.style.background = bg;
 
+
       const title = document.createElement('div');
       title.className = 'title';
       title.textContent = groupName;
@@ -471,6 +485,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       count.className = 'count';
       count.textContent = state.items.filter(i=>i.group===groupName).length;
       card.appendChild(count);
+
 
       card.addEventListener('click', ()=>{ showCategory(groupName); });
 
@@ -627,29 +642,39 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
   editLinkBtn.addEventListener('click', ()=>{
     const item = state.items.find(x=>x.id===previewId);
     if(!item) return;
+
+    returnToCategory = false;
+
     previewDlg.close();
     editingId = item.id;
     renderGroupsSelect();
     groupSelect.value = item.group;
 
     titleInput.value = item.title; urlInput.value = item.url; notesInput.value = item.notes || '';
-
     linkDlgTitle.textContent = 'Edit Link';
     linkDlg.showModal();
+    linkDlg.addEventListener('close', function handler(){
+      linkDlg.removeEventListener('close', handler);
+      if(currentCategory) showCategory(currentCategory);
+    }, {once:true});
+
   });
 
   deleteLinkBtn.addEventListener('click', async ()=>{
     const id = previewId;
+
+    returnToCategory = false;
     previewDlg.close();
-    if(await confirmAction('Delete this link?')){
+    const ok = await confirmAction('Delete this link?');
+    if(ok){
       const idx = state.items.findIndex(x=>x.id===id);
       if(idx>-1){ state.items.splice(idx,1); save(state); render(); }
     }
+    showCategory(currentCategory);
   });
 
   // Show fallback only if iframe fails to load
-
-  previewDlg.addEventListener('close', ()=>{ previewId=null; });
+  previewDlg.addEventListener('close', ()=>{ previewId=null; if(returnToCategory){returnToCategory=false; showCategory(currentCategory);} });
 
 
   linkForm.addEventListener('submit', (e)=>{
