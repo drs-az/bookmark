@@ -29,6 +29,16 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 .chip{appearance:none;border:none;background:#222;color:#fff;border-radius:999px;padding:6px 10px;font-weight:800;font-size:12px;cursor:pointer}
 .chip.ghost{background:#444}
 
+/* Category grid */
+.grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.card{position:relative;padding:16px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--card-bg);box-shadow:var(--shadow);cursor:pointer}
+.card .title{font-weight:700;margin-bottom:8px}
+.card .count{position:absolute;top:8px;right:8px;font-size:14px;font-weight:700;background:var(--accent);color:var(--accent-fg);border-radius:999px;padding:2px 8px}
+.links{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.linkRow{display:flex;align-items:center;gap:8px}
+.openBtn{appearance:none;border:none;border-radius:8px;background:var(--accent);color:var(--accent-fg);padding:8px 10px;cursor:pointer}
+.linkTitle{flex:1;text-align:left;appearance:none;border:1.5px solid var(--border);border-radius:8px;background:var(--card-bg);padding:8px;cursor:pointer;font:inherit;color:var(--fg)}
+
 /* Empty state */
 .empty{margin:28vh 0 0; text-align:center; color:var(--muted)}
 .empty .hint{margin-top:10px}
@@ -99,7 +109,23 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         <button class="btn ghost" value="cancel">Cancel</button>
       </div>
     </form>
-  </dialog>  <!-- Group Manager Modal -->  <dialog id="groupDlg">
+  </dialog>
+  <!-- Link Preview Modal -->
+  <dialog id="previewDlg">
+    <div class="modal">
+      <h3 id="previewTitle"></h3>
+      <iframe id="previewFrame" style="width:100%;height:60vh;border:none;border-radius:14px"></iframe>
+      <div class="row">
+        <button class="btn primary" id="editLinkBtn" type="button">Edit</button>
+        <button class="btn ghost" id="deleteLinkBtn" type="button">Delete</button>
+      </div>
+      <div class="row">
+        <button class="btn ghost" id="copyLinkBtn" type="button">Copy Link</button>
+        <button class="btn ghost" id="shareLinkBtn" type="button">Share</button>
+      </div>
+    </div>
+  </dialog>
+  <!-- Group Manager Modal -->  <dialog id="groupDlg">
     <form method="dialog" class="modal" id="groupForm">
       <h3>Groups</h3>
       <div id="groupList" class="list" style="margin:8px 0 14px"></div>
@@ -230,9 +256,18 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const urlInput = document.getElementById('urlInput');
   const manageGroupsBtn = document.getElementById('manageGroupsBtn');
 
+  const previewDlg = document.getElementById('previewDlg');
+  const previewTitle = document.getElementById('previewTitle');
+  const previewFrame = document.getElementById('previewFrame');
+  const editLinkBtn = document.getElementById('editLinkBtn');
+  const deleteLinkBtn = document.getElementById('deleteLinkBtn');
+  const copyLinkBtn = document.getElementById('copyLinkBtn');
+  const shareLinkBtn = document.getElementById('shareLinkBtn');
+
   const resetDemo = document.getElementById('resetDemo');
 
   let editingId = null;
+  let previewId = null;
   let unlocked = true;
   let passAttempts = 0;
   const passHash = localStorage.getItem(PASS_KEY);
@@ -275,6 +310,13 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         confirmDlg.removeEventListener('close', handler);
       }, {once:true});
     });
+  }
+
+  function showPreview(item){
+    previewId = item.id;
+    previewTitle.textContent = item.title;
+    previewFrame.src = item.url;
+    previewDlg.showModal();
   }
 
   function renderGroupsSelect(){
@@ -337,46 +379,56 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 
     emptyState.hidden = state.items.length!==0;
 
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+
     [...groupsWithItems].forEach(groupName=>{
-      const section = document.createElement('section');
-      section.className='group';
-      const h2 = document.createElement('h2'); h2.textContent = groupName; section.appendChild(h2);
-      const list = document.createElement('div'); list.className='list';
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = groupName;
+      card.appendChild(title);
+
+      const count = document.createElement('span');
+      count.className = 'count';
+      count.textContent = state.items.filter(i=>i.group===groupName).length;
+      card.appendChild(count);
+
+      const links = document.createElement('div');
+      links.className = 'links';
+      links.hidden = true;
 
       state.items.filter(i=>i.group===groupName).forEach(i=>{
-        const row = document.createElement('div'); row.className='item';
+        const row = document.createElement('div');
+        row.className = 'linkRow';
 
-        // Display Text as a link ONLY
-        const a = document.createElement('a');
-        a.className='title'; a.textContent = i.title; a.href=i.url; a.target='_blank'; a.rel='noopener noreferrer';
-        row.appendChild(a);
+        const openBtn = document.createElement('button');
+        openBtn.className = 'openBtn';
+        openBtn.textContent = '🚀';
+        openBtn.onclick = (e)=>{ e.stopPropagation(); window.open(i.url, '_blank'); };
+        row.appendChild(openBtn);
 
-        // Edit & Delete chips
-        const editBtn = document.createElement('button'); editBtn.className='chip'; editBtn.textContent='Edit';
-        editBtn.onclick = ()=>{
-          editingId = i.id;
-          renderGroupsSelect();
-          groupSelect.value = i.group;
-          titleInput.value = i.title; urlInput.value = i.url;
-          linkDlgTitle.textContent = 'Edit Link';
-          linkDlg.showModal();
-        };
-        row.appendChild(editBtn);
+        const titleBtn = document.createElement('button');
+        titleBtn.className = 'linkTitle';
+        titleBtn.textContent = i.title;
+        titleBtn.onclick = (e)=>{ e.stopPropagation(); showPreview(i); };
+        row.appendChild(titleBtn);
 
-        const delBtn = document.createElement('button'); delBtn.className='chip ghost'; delBtn.textContent='Delete';
-        delBtn.onclick = async ()=>{
-          if(await confirmAction('Delete this link?')){
-            const idx = state.items.findIndex(x=>x.id===i.id);
-            if(idx>-1){ state.items.splice(idx,1); save(state); render(); }
-          }
-        };
-        row.appendChild(delBtn);
-
-        list.appendChild(row);
+        links.appendChild(row);
       });
 
-      section.appendChild(list); root.appendChild(section);
+      card.appendChild(links);
+      card.addEventListener('click', (e)=>{
+        if(e.target.closest('.openBtn') || e.target.closest('.linkTitle')) return;
+        links.hidden = !links.hidden;
+      });
+
+      grid.appendChild(card);
     });
+
+    root.appendChild(grid);
   }
 
   // ----- Events -----
@@ -497,6 +549,47 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       document.getElementById('newGroup').value=''; save(state); render(); renderGroupListManager(); renderGroupsSelect();
     }
   });
+
+  editLinkBtn.addEventListener('click', ()=>{
+    const item = state.items.find(x=>x.id===previewId);
+    if(!item) return;
+    previewDlg.close();
+    editingId = item.id;
+    renderGroupsSelect();
+    groupSelect.value = item.group;
+    titleInput.value = item.title; urlInput.value = item.url;
+    linkDlgTitle.textContent = 'Edit Link';
+    linkDlg.showModal();
+  });
+
+  deleteLinkBtn.addEventListener('click', async ()=>{
+    const id = previewId;
+    previewDlg.close();
+    if(await confirmAction('Delete this link?')){
+      const idx = state.items.findIndex(x=>x.id===id);
+      if(idx>-1){ state.items.splice(idx,1); save(state); render(); }
+    }
+  });
+
+  copyLinkBtn.addEventListener('click', ()=>{
+    const item = state.items.find(x=>x.id===previewId);
+    if(!item) return;
+    navigator.clipboard?.writeText(item.url);
+    showInfo('Link copied');
+  });
+
+  shareLinkBtn.addEventListener('click', ()=>{
+    const item = state.items.find(x=>x.id===previewId);
+    if(!item) return;
+    if(navigator.share){
+      navigator.share({title:item.title, url:item.url});
+    }else{
+      navigator.clipboard?.writeText(item.url);
+      showInfo('Link copied');
+    }
+  });
+
+  previewDlg.addEventListener('close', ()=>{ previewId=null; previewFrame.src=''; });
 
   linkForm.addEventListener('submit', (e)=>{
     const action = e.submitter?.value; if(action!=='save') return; e.preventDefault();
