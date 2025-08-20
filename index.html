@@ -32,7 +32,7 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 /* Category grid */
 .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
 .card{position:relative;padding:16px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--card-bg);box-shadow:var(--shadow);cursor:pointer}
-.card .title{font-weight:700;margin-bottom:8px}
+.card .title{font-weight:700;margin-bottom:8px;margin-right:40px}
 .card .count{position:absolute;top:8px;right:8px;font-size:14px;font-weight:700;background:var(--accent);color:var(--accent-fg);border-radius:999px;padding:2px 8px}
 .linkRow{display:flex;align-items:center;gap:8px}
 .openBtn{appearance:none;border:none;border-radius:8px;background:var(--accent);color:var(--accent-fg);padding:8px 10px;cursor:pointer}
@@ -54,7 +54,7 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 /* Modal */
 dialog{border:none; border-radius:24px; padding:0; width:min(92vw, 520px); box-shadow:0 30px 80px rgba(0,0,0,.25); background:var(--card-bg); color:var(--fg)}
 dialog::backdrop{background:rgba(0,0,0,.25)}
-.modal{padding:22px}
+.modal{position:relative;padding:22px}
 .modal h3{margin:0 0 14px; font-size:26px}
 .field{margin:14px 0}
 label{display:block; font-weight:700; margin:0 0 8px}
@@ -64,6 +64,9 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 .btn.primary{background:var(--accent); color:var(--accent-fg)}
 .btn.ghost{background:#eee; color:#111}
 .actions .btn{flex:1}
+#openLinkBtn{width:100%}
+#categoryColor{position:absolute;top:16px;right:16px;width:32px;height:32px;border:none;padding:0;background:transparent;cursor:pointer}
+
 .previewPane{position:relative;width:100%;height:60vh;border-radius:14px;overflow:hidden}
 .previewPane iframe{width:100%;height:100%;border:none;border-radius:14px}
 #previewFallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700}
@@ -124,17 +127,23 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         <div id="previewFallback" hidden>Link Preview Not Available</div>
       </div>
         <div class="row actions">
-          <button class="btn primary" id="openLinkBtn" type="button">Open</button>
           <button class="btn ghost" id="copyLinkBtn" type="button">Copy</button>
           <button class="btn ghost" id="shareLinkBtn" type="button">Share</button>
           <button class="btn ghost" id="editLinkBtn" type="button">Edit</button>
           <button class="btn ghost" id="deleteLinkBtn" type="button">Delete</button>
         </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="openLinkBtn" type="button">Open</button>
+        </div>
+
     </div>
     </dialog>
     <!-- Category Links Modal -->
     <dialog id="categoryDlg">
-      <div class="modal">
+
+      <div class="modal" id="categoryModalBox">
+        <input type="color" id="categoryColor" />
+
         <h3 id="categoryTitle"></h3>
         <div id="categoryLinks"></div>
       </div>
@@ -218,9 +227,10 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const STORE_KEY = 'hubData.v1';
   const THEME_KEY = 'hubTheme';
   const PASS_KEY = 'hubPass';
-  const load = () => JSON.parse(localStorage.getItem(STORE_KEY) || '{"groups":["Personal"],"items":[]}');
+  const load = () => JSON.parse(localStorage.getItem(STORE_KEY) || '{"groups":["Personal"],"items":[],"groupColors":{}}');
   const save = (data) => localStorage.setItem(STORE_KEY, JSON.stringify(data));
   const state = load();
+  if(!state.groupColors) state.groupColors = {};
   const hashPass = async(p)=>{
     const buf = new TextEncoder().encode(p);
     const digest = await crypto.subtle.digest('SHA-256', buf);
@@ -282,11 +292,15 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     const categoryDlg = document.getElementById('categoryDlg');
     const categoryTitle = document.getElementById('categoryTitle');
     const categoryLinks = document.getElementById('categoryLinks');
+    const categoryModalBox = document.getElementById('categoryModalBox');
+    const categoryColor = document.getElementById('categoryColor');
+
 
   const resetDemo = document.getElementById('resetDemo');
 
   let editingId = null;
   let previewId = null;
+  let currentCategory = null;
   let unlocked = true;
   let passAttempts = 0;
   const passHash = localStorage.getItem(PASS_KEY);
@@ -331,10 +345,20 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     });
   }
 
-
   function showCategory(group){
+    currentCategory = group;
     categoryTitle.textContent = group;
     categoryLinks.innerHTML = '';
+    const color = state.groupColors[group] || '';
+    categoryModalBox.style.background = color || 'var(--card-bg)';
+    categoryColor.value = color || '#ffffff';
+    categoryColor.oninput = (e)=>{
+      state.groupColors[currentCategory] = e.target.value;
+      categoryModalBox.style.background = e.target.value;
+      save(state);
+      render();
+    };
+
     state.items.filter(i=>i.group===group).forEach(i=>{
       const row = document.createElement('div');
       row.className = 'linkRow';
@@ -360,7 +384,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   function showPreview(item){
     previewId = item.id;
     previewTitle.textContent = item.title;
-    previewFrame.hidden = false;
+    previewFrame.hidden = true;
     previewFallback.hidden = true;
     previewFrame.src = item.url;
     previewDlg.showModal();
@@ -433,12 +457,13 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       const card = document.createElement('div');
       card.className = 'card';
 
+      const bg = state.groupColors[groupName];
+      if(bg) card.style.background = bg;
 
       const title = document.createElement('div');
       title.className = 'title';
       title.textContent = groupName;
       card.appendChild(title);
-
 
       const count = document.createElement('span');
       count.className = 'count';
@@ -446,7 +471,6 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       card.appendChild(count);
 
       card.addEventListener('click', ()=>{ showCategory(groupName); });
-
 
       grid.appendChild(card);
     });
@@ -618,7 +642,23 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     }
   });
 
-  previewFrame.addEventListener('load', ()=>{ previewFrame.hidden=false; previewFallback.hidden=true; });
+
+  previewFrame.addEventListener('load', ()=>{
+    try{
+      const doc = previewFrame.contentDocument;
+      if(doc && doc.body && doc.body.children.length){
+        previewFrame.hidden = false;
+        previewFallback.hidden = true;
+      }else{
+        previewFrame.hidden = true;
+        previewFallback.hidden = false;
+      }
+    }catch{
+      previewFrame.hidden = true;
+      previewFallback.hidden = false;
+    }
+  });
+
   previewFrame.addEventListener('error', ()=>{ previewFrame.hidden=true; previewFallback.hidden=false; });
 
   previewDlg.addEventListener('close', ()=>{ previewId=null; previewFrame.src=''; previewFrame.hidden=false; previewFallback.hidden=true; });
