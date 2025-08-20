@@ -34,7 +34,8 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 .card{position:relative;padding:16px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--card-bg);box-shadow:var(--shadow);cursor:pointer}
 .card .title{font-weight:700;margin-bottom:8px}
 .card .count{position:absolute;top:8px;right:8px;font-size:14px;font-weight:700;background:var(--accent);color:var(--accent-fg);border-radius:999px;padding:2px 8px}
-.links{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.links{margin-top:12px;display:none;flex-direction:column;gap:8px}
+.card.open .links{display:flex}
 .linkRow{display:flex;align-items:center;gap:8px}
 .openBtn{appearance:none;border:none;border-radius:8px;background:var(--accent);color:var(--accent-fg);padding:8px 10px;cursor:pointer}
 .linkTitle{flex:1;text-align:left;appearance:none;border:1.5px solid var(--border);border-radius:8px;background:var(--card-bg);padding:8px;cursor:pointer;font:inherit;color:var(--fg)}
@@ -407,8 +408,6 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 
       const links = document.createElement('div');
       links.className = 'links';
-      links.hidden = true;
-
 
       state.items.filter(i=>i.group===groupName).forEach(i=>{
         const row = document.createElement('div');
@@ -432,7 +431,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       card.appendChild(links);
       card.addEventListener('click', (e)=>{
         if(e.target.closest('.openBtn') || e.target.closest('.linkTitle')) return;
-        links.hidden = !links.hidden;
+        card.classList.toggle('open');
       });
 
       grid.appendChild(card);
