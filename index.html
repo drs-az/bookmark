@@ -165,6 +165,14 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         <button class="btn primary" value="ok">OK</button>
       </div>
     </form>
+  </dialog>  <!-- Confirm Modal -->  <dialog id="confirmDlg">
+    <form method="dialog" class="modal">
+      <p id="confirmMsg" style="margin:14px 0"></p>
+      <div class="row">
+        <button class="btn primary" value="ok">Delete</button>
+        <button class="btn ghost" value="cancel">Cancel</button>
+      </div>
+    </form>
   </dialog>  <script>
   // -------- Data Layer (localStorage) --------
   const STORE_KEY = 'hubData.v1';
@@ -213,6 +221,8 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const passErr = document.getElementById('passErr');
   const infoDlg = document.getElementById('infoDlg');
   const infoMsg = document.getElementById('infoMsg');
+  const confirmDlg = document.getElementById('confirmDlg');
+  const confirmMsg = document.getElementById('confirmMsg');
   const appContainer = document.querySelector('.container');
 
   const groupSelect = document.getElementById('groupSelect');
@@ -255,6 +265,18 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     infoDlg.showModal();
   }
 
+  function confirmAction(msg){
+    confirmMsg.textContent = msg;
+    confirmDlg.returnValue = 'cancel';
+    confirmDlg.showModal();
+    return new Promise(resolve=>{
+      confirmDlg.addEventListener('close', function handler(){
+        resolve(confirmDlg.returnValue === 'ok');
+        confirmDlg.removeEventListener('close', handler);
+      }, {once:true});
+    });
+  }
+
   function renderGroupsSelect(){
     groupSelect.innerHTML = '';
     state.groups.forEach(g=>{
@@ -295,10 +317,12 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       if(state.groups.length>1){
         const del = document.createElement('button');
         del.className='btn ghost'; del.textContent='Delete';
-        del.onclick = (e)=>{ e.preventDefault();
+        del.onclick = async (e)=>{ e.preventDefault();
           const used = state.items.some(it=>it.group===g);
           if(used){ alert('Remove or reassign links in this group first.'); return; }
-          state.groups.splice(i,1); save(state); render(); renderGroupListManager(); renderGroupsSelect();
+          if(await confirmAction('Delete this group?')){
+            state.groups.splice(i,1); save(state); render(); renderGroupListManager(); renderGroupsSelect();
+          }
         };
         row.appendChild(del);
       }
@@ -340,9 +364,11 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         row.appendChild(editBtn);
 
         const delBtn = document.createElement('button'); delBtn.className='chip ghost'; delBtn.textContent='Delete';
-        delBtn.onclick = ()=>{
-          const idx = state.items.findIndex(x=>x.id===i.id);
-          if(idx>-1){ state.items.splice(idx,1); save(state); render(); }
+        delBtn.onclick = async ()=>{
+          if(await confirmAction('Delete this link?')){
+            const idx = state.items.findIndex(x=>x.id===i.id);
+            if(idx>-1){ state.items.splice(idx,1); save(state); render(); }
+          }
         };
         row.appendChild(delBtn);
 
