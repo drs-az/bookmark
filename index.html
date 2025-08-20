@@ -31,7 +31,7 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 
 /* Category grid */
 .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
-.card{position:relative;padding:16px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--card-bg);box-shadow:var(--shadow);cursor:pointer}
+.card{position:relative;padding:16px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--card-bg);box-shadow:var(--shadow);cursor:pointer;aspect-ratio:1}
 .card .title{font-weight:700;margin-bottom:8px;margin-right:40px}
 .card .count{position:absolute;top:8px;right:8px;font-size:14px;font-weight:700;background:var(--accent);color:var(--accent-fg);border-radius:999px;padding:2px 8px}
 .linkRow{display:flex;align-items:center;gap:8px}
@@ -66,7 +66,6 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 .actions .btn{flex:1}
 #openLinkBtn{width:100%}
 #categoryColor{position:absolute;top:16px;right:16px;width:32px;height:32px;border:none;padding:0;background:transparent;cursor:pointer}
-
 .previewPane{position:relative;width:100%;height:60vh;border-radius:14px;overflow:hidden}
 .previewPane iframe{width:100%;height:100%;border:none;border-radius:14px}
 #previewFallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700}
@@ -135,15 +134,20 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         <div class="row" style="margin-top:12px">
           <button class="btn primary" id="openLinkBtn" type="button">Open</button>
         </div>
-
     </div>
     </dialog>
     <!-- Category Links Modal -->
     <dialog id="categoryDlg">
-
       <div class="modal" id="categoryModalBox">
-        <input type="color" id="categoryColor" />
-
+        <input type="color" id="categoryColor" list="categoryColors" />
+        <datalist id="categoryColors">
+          <option value="#ffd1dc"></option>
+          <option value="#c1e1c1"></option>
+          <option value="#fce1a8"></option>
+          <option value="#dae7f5"></option>
+          <option value="#e2d8f0"></option>
+          <option value="#f6e7c1"></option>
+        </datalist>
         <h3 id="categoryTitle"></h3>
         <div id="categoryLinks"></div>
       </div>
@@ -295,7 +299,6 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     const categoryModalBox = document.getElementById('categoryModalBox');
     const categoryColor = document.getElementById('categoryColor');
 
-
   const resetDemo = document.getElementById('resetDemo');
 
   let editingId = null;
@@ -379,7 +382,6 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     });
     categoryDlg.showModal();
   }
-
 
   function showPreview(item){
     previewId = item.id;
@@ -642,24 +644,15 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     }
   });
 
-
+  // Show fallback only if iframe fails to load
   previewFrame.addEventListener('load', ()=>{
-    try{
-      const doc = previewFrame.contentDocument;
-      if(doc && doc.body && doc.body.children.length){
-        previewFrame.hidden = false;
-        previewFallback.hidden = true;
-      }else{
-        previewFrame.hidden = true;
-        previewFallback.hidden = false;
-      }
-    }catch{
-      previewFrame.hidden = true;
-      previewFallback.hidden = false;
-    }
+    previewFrame.hidden = false;
+    previewFallback.hidden = true;
   });
-
-  previewFrame.addEventListener('error', ()=>{ previewFrame.hidden=true; previewFallback.hidden=false; });
+  previewFrame.addEventListener('error', ()=>{
+    previewFrame.hidden = true;
+    previewFallback.hidden = false;
+  });
 
   previewDlg.addEventListener('close', ()=>{ previewId=null; previewFrame.src=''; previewFrame.hidden=false; previewFallback.hidden=true; });
 
