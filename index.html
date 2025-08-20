@@ -64,6 +64,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
 .btn.primary{background:var(--accent); color:var(--accent-fg)}
 .btn.ghost{background:#eee; color:#111}
 .actions .btn{flex:1}
+
 #categoryColor{position:absolute;top:16px;right:16px;width:32px;height:32px;border:none;padding:0;background:transparent;cursor:pointer}
 
 .mutelink{font-size:14px; color:var(--muted); text-decoration:underline; cursor:pointer}
@@ -116,6 +117,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       </div>
     </form>
   </dialog>
+
   <!-- Link Modal -->
   <dialog id="previewDlg">
     <div class="modal">
@@ -130,6 +132,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       </div>
     </div>
   </dialog>
+
     <!-- Category Links Modal -->
     <dialog id="categoryDlg">
       <div class="modal" id="categoryModalBox">
@@ -281,7 +284,9 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
 
     const previewDlg = document.getElementById('previewDlg');
     const previewTitle = document.getElementById('previewTitle');
+
     const previewNotes = document.getElementById('previewNotes');
+
     const openLinkBtn = document.getElementById('openLinkBtn');
     const copyLinkBtn = document.getElementById('copyLinkBtn');
     const shareLinkBtn = document.getElementById('shareLinkBtn');
@@ -355,6 +360,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       save(state);
       render();
     };
+
     state.items.filter(i=>i.group===group).forEach(i=>{
       const row = document.createElement('div');
       row.className = 'linkRow';
@@ -379,8 +385,10 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
   function showPreview(item){
     previewId = item.id;
     previewTitle.textContent = item.title;
+
     previewNotes.textContent = item.notes || '';
     previewNotes.hidden = !item.notes;
+
     previewDlg.showModal();
   }
 
@@ -450,6 +458,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
     [...groupsWithItems].forEach(groupName=>{
       const card = document.createElement('div');
       card.className = 'card';
+
       const bg = state.groupColors[groupName];
       if(bg) card.style.background = bg;
 
@@ -464,6 +473,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       card.appendChild(count);
 
       card.addEventListener('click', ()=>{ showCategory(groupName); });
+
 
       grid.appendChild(card);
     });
@@ -621,7 +631,9 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
     editingId = item.id;
     renderGroupsSelect();
     groupSelect.value = item.group;
+
     titleInput.value = item.title; urlInput.value = item.url; notesInput.value = item.notes || '';
+
     linkDlgTitle.textContent = 'Edit Link';
     linkDlg.showModal();
   });
@@ -636,7 +648,9 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
   });
 
   // Show fallback only if iframe fails to load
+
   previewDlg.addEventListener('close', ()=>{ previewId=null; });
+
 
   linkForm.addEventListener('submit', (e)=>{
     const action = e.submitter?.value; if(action!=='save') return; e.preventDefault();
