@@ -66,6 +66,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 .actions .btn{flex:1}
 #openLinkBtn{width:100%}
 #categoryColor{position:absolute;top:16px;right:16px;width:32px;height:32px;border:none;padding:0;background:transparent;cursor:pointer}
+
 .previewPane{position:relative;width:100%;height:60vh;border-radius:14px;overflow:hidden}
 .previewPane iframe{width:100%;height:100%;border:none;border-radius:14px}
 #previewFallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700}
@@ -134,12 +135,15 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         <div class="row" style="margin-top:12px">
           <button class="btn primary" id="openLinkBtn" type="button">Open</button>
         </div>
+
     </div>
     </dialog>
     <!-- Category Links Modal -->
     <dialog id="categoryDlg">
+
       <div class="modal" id="categoryModalBox">
         <input type="color" id="categoryColor" />
+
         <h3 id="categoryTitle"></h3>
         <div id="categoryLinks"></div>
       </div>
@@ -291,6 +295,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     const categoryModalBox = document.getElementById('categoryModalBox');
     const categoryColor = document.getElementById('categoryColor');
 
+
   const resetDemo = document.getElementById('resetDemo');
 
   let editingId = null;
@@ -353,6 +358,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       save(state);
       render();
     };
+
     state.items.filter(i=>i.group===group).forEach(i=>{
       const row = document.createElement('div');
       row.className = 'linkRow';
@@ -373,6 +379,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     });
     categoryDlg.showModal();
   }
+
 
   function showPreview(item){
     previewId = item.id;
@@ -449,6 +456,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     [...groupsWithItems].forEach(groupName=>{
       const card = document.createElement('div');
       card.className = 'card';
+
       const bg = state.groupColors[groupName];
       if(bg) card.style.background = bg;
 
@@ -634,6 +642,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     }
   });
 
+
   previewFrame.addEventListener('load', ()=>{
     try{
       const doc = previewFrame.contentDocument;
@@ -649,6 +658,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       previewFallback.hidden = false;
     }
   });
+
   previewFrame.addEventListener('error', ()=>{ previewFrame.hidden=true; previewFallback.hidden=false; });
 
   previewDlg.addEventListener('close', ()=>{ previewId=null; previewFrame.src=''; previewFrame.hidden=false; previewFallback.hidden=true; });
