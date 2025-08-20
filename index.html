@@ -331,6 +331,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     });
   }
 
+
   function showCategory(group){
     categoryTitle.textContent = group;
     categoryLinks.innerHTML = '';
@@ -354,6 +355,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     });
     categoryDlg.showModal();
   }
+
 
   function showPreview(item){
     previewId = item.id;
@@ -431,10 +433,12 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       const card = document.createElement('div');
       card.className = 'card';
 
+
       const title = document.createElement('div');
       title.className = 'title';
       title.textContent = groupName;
       card.appendChild(title);
+
 
       const count = document.createElement('span');
       count.className = 'count';
@@ -442,6 +446,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       card.appendChild(count);
 
       card.addEventListener('click', ()=>{ showCategory(groupName); });
+
 
       grid.appendChild(card);
     });
