@@ -361,6 +361,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       save(state);
       render();
     };
+
     state.items.filter(i=>i.group===group).forEach(i=>{
       const row = document.createElement('div');
       row.className = 'linkRow';
@@ -457,6 +458,7 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
     [...groupsWithItems].forEach(groupName=>{
       const card = document.createElement('div');
       card.className = 'card';
+
       const bg = state.groupColors[groupName];
       if(bg) card.style.background = bg;
 
