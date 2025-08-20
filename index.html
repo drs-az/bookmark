@@ -29,6 +29,16 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 .chip{appearance:none;border:none;background:#222;color:#fff;border-radius:999px;padding:6px 10px;font-weight:800;font-size:12px;cursor:pointer}
 .chip.ghost{background:#444}
 
+/* Category grid */
+.grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.card{position:relative;padding:16px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--card-bg);box-shadow:var(--shadow);cursor:pointer}
+.card .title{font-weight:700;margin-bottom:8px;margin-right:40px}
+.card .count{position:absolute;top:8px;right:8px;font-size:14px;font-weight:700;background:var(--accent);color:var(--accent-fg);border-radius:999px;padding:2px 8px}
+.linkRow{display:flex;align-items:center;gap:8px}
+.openBtn{appearance:none;border:none;border-radius:8px;background:var(--accent);color:var(--accent-fg);padding:8px 10px;cursor:pointer}
+.linkTitle{flex:1;text-align:left;appearance:none;border:1.5px solid var(--border);border-radius:8px;background:var(--card-bg);padding:8px;cursor:pointer;font:inherit;color:var(--fg)}
+#categoryLinks{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+
 /* Empty state */
 .empty{margin:28vh 0 0; text-align:center; color:var(--muted)}
 .empty .hint{margin-top:10px}
@@ -44,7 +54,7 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 /* Modal */
 dialog{border:none; border-radius:24px; padding:0; width:min(92vw, 520px); box-shadow:0 30px 80px rgba(0,0,0,.25); background:var(--card-bg); color:var(--fg)}
 dialog::backdrop{background:rgba(0,0,0,.25)}
-.modal{padding:22px}
+.modal{position:relative;padding:22px}
 .modal h3{margin:0 0 14px; font-size:26px}
 .field{margin:14px 0}
 label{display:block; font-weight:700; margin:0 0 8px}
@@ -53,6 +63,13 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 .btn{appearance:none; border:none; padding:12px 16px; border-radius:14px; font-weight:800; cursor:pointer}
 .btn.primary{background:var(--accent); color:var(--accent-fg)}
 .btn.ghost{background:#eee; color:#111}
+.actions .btn{flex:1}
+#openLinkBtn{width:100%}
+#categoryColor{position:absolute;top:16px;right:16px;width:32px;height:32px;border:none;padding:0;background:transparent;cursor:pointer}
+.previewPane{position:relative;width:100%;height:60vh;border-radius:14px;overflow:hidden}
+.previewPane iframe{width:100%;height:100%;border:none;border-radius:14px}
+#previewFallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700}
+#previewFallback[hidden]{display:none}
 
 .mutelink{font-size:14px; color:var(--muted); text-decoration:underline; cursor:pointer}
 
@@ -99,7 +116,35 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         <button class="btn ghost" value="cancel">Cancel</button>
       </div>
     </form>
-  </dialog>  <!-- Group Manager Modal -->  <dialog id="groupDlg">
+  </dialog>
+  <!-- Link Preview Modal -->
+  <dialog id="previewDlg">
+    <div class="modal">
+      <h3 id="previewTitle"></h3>
+      <div class="previewPane">
+        <iframe id="previewFrame"></iframe>
+        <div id="previewFallback" hidden>Link Preview Not Available</div>
+      </div>
+        <div class="row actions">
+          <button class="btn ghost" id="copyLinkBtn" type="button">Copy</button>
+          <button class="btn ghost" id="shareLinkBtn" type="button">Share</button>
+          <button class="btn ghost" id="editLinkBtn" type="button">Edit</button>
+          <button class="btn ghost" id="deleteLinkBtn" type="button">Delete</button>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="openLinkBtn" type="button">Open</button>
+        </div>
+    </div>
+    </dialog>
+    <!-- Category Links Modal -->
+    <dialog id="categoryDlg">
+      <div class="modal" id="categoryModalBox">
+        <input type="color" id="categoryColor" />
+        <h3 id="categoryTitle"></h3>
+        <div id="categoryLinks"></div>
+      </div>
+    </dialog>
+    <!-- Group Manager Modal -->  <dialog id="groupDlg">
     <form method="dialog" class="modal" id="groupForm">
       <h3>Groups</h3>
       <div id="groupList" class="list" style="margin:8px 0 14px"></div>
@@ -178,9 +223,10 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const STORE_KEY = 'hubData.v1';
   const THEME_KEY = 'hubTheme';
   const PASS_KEY = 'hubPass';
-  const load = () => JSON.parse(localStorage.getItem(STORE_KEY) || '{"groups":["Personal"],"items":[]}');
+  const load = () => JSON.parse(localStorage.getItem(STORE_KEY) || '{"groups":["Personal"],"items":[],"groupColors":{}}');
   const save = (data) => localStorage.setItem(STORE_KEY, JSON.stringify(data));
   const state = load();
+  if(!state.groupColors) state.groupColors = {};
   const hashPass = async(p)=>{
     const buf = new TextEncoder().encode(p);
     const digest = await crypto.subtle.digest('SHA-256', buf);
@@ -230,9 +276,26 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const urlInput = document.getElementById('urlInput');
   const manageGroupsBtn = document.getElementById('manageGroupsBtn');
 
+    const previewDlg = document.getElementById('previewDlg');
+    const previewTitle = document.getElementById('previewTitle');
+    const previewFrame = document.getElementById('previewFrame');
+    const previewFallback = document.getElementById('previewFallback');
+    const openLinkBtn = document.getElementById('openLinkBtn');
+    const copyLinkBtn = document.getElementById('copyLinkBtn');
+    const shareLinkBtn = document.getElementById('shareLinkBtn');
+    const editLinkBtn = document.getElementById('editLinkBtn');
+    const deleteLinkBtn = document.getElementById('deleteLinkBtn');
+    const categoryDlg = document.getElementById('categoryDlg');
+    const categoryTitle = document.getElementById('categoryTitle');
+    const categoryLinks = document.getElementById('categoryLinks');
+    const categoryModalBox = document.getElementById('categoryModalBox');
+    const categoryColor = document.getElementById('categoryColor');
+
   const resetDemo = document.getElementById('resetDemo');
 
   let editingId = null;
+  let previewId = null;
+  let currentCategory = null;
   let unlocked = true;
   let passAttempts = 0;
   const passHash = localStorage.getItem(PASS_KEY);
@@ -275,6 +338,49 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         confirmDlg.removeEventListener('close', handler);
       }, {once:true});
     });
+  }
+
+  function showCategory(group){
+    currentCategory = group;
+    categoryTitle.textContent = group;
+    categoryLinks.innerHTML = '';
+    const color = state.groupColors[group] || '';
+    categoryModalBox.style.background = color || 'var(--card-bg)';
+    categoryColor.value = color || '#ffffff';
+    categoryColor.oninput = (e)=>{
+      state.groupColors[currentCategory] = e.target.value;
+      categoryModalBox.style.background = e.target.value;
+      save(state);
+      render();
+    };
+    state.items.filter(i=>i.group===group).forEach(i=>{
+      const row = document.createElement('div');
+      row.className = 'linkRow';
+
+      const openBtn = document.createElement('button');
+      openBtn.className = 'openBtn';
+      openBtn.textContent = '🚀';
+      openBtn.onclick = (e)=>{ e.stopPropagation(); categoryDlg.close(); window.open(i.url, '_blank'); };
+      row.appendChild(openBtn);
+
+      const titleBtn = document.createElement('button');
+      titleBtn.className = 'linkTitle';
+      titleBtn.textContent = i.title;
+      titleBtn.onclick = (e)=>{ e.stopPropagation(); categoryDlg.close(); showPreview(i); };
+      row.appendChild(titleBtn);
+
+      categoryLinks.appendChild(row);
+    });
+    categoryDlg.showModal();
+  }
+
+  function showPreview(item){
+    previewId = item.id;
+    previewTitle.textContent = item.title;
+    previewFrame.hidden = true;
+    previewFallback.hidden = true;
+    previewFrame.src = item.url;
+    previewDlg.showModal();
   }
 
   function renderGroupsSelect(){
@@ -337,46 +443,31 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 
     emptyState.hidden = state.items.length!==0;
 
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+
     [...groupsWithItems].forEach(groupName=>{
-      const section = document.createElement('section');
-      section.className='group';
-      const h2 = document.createElement('h2'); h2.textContent = groupName; section.appendChild(h2);
-      const list = document.createElement('div'); list.className='list';
+      const card = document.createElement('div');
+      card.className = 'card';
+      const bg = state.groupColors[groupName];
+      if(bg) card.style.background = bg;
 
-      state.items.filter(i=>i.group===groupName).forEach(i=>{
-        const row = document.createElement('div'); row.className='item';
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = groupName;
+      card.appendChild(title);
 
-        // Display Text as a link ONLY
-        const a = document.createElement('a');
-        a.className='title'; a.textContent = i.title; a.href=i.url; a.target='_blank'; a.rel='noopener noreferrer';
-        row.appendChild(a);
+      const count = document.createElement('span');
+      count.className = 'count';
+      count.textContent = state.items.filter(i=>i.group===groupName).length;
+      card.appendChild(count);
 
-        // Edit & Delete chips
-        const editBtn = document.createElement('button'); editBtn.className='chip'; editBtn.textContent='Edit';
-        editBtn.onclick = ()=>{
-          editingId = i.id;
-          renderGroupsSelect();
-          groupSelect.value = i.group;
-          titleInput.value = i.title; urlInput.value = i.url;
-          linkDlgTitle.textContent = 'Edit Link';
-          linkDlg.showModal();
-        };
-        row.appendChild(editBtn);
+      card.addEventListener('click', ()=>{ showCategory(groupName); });
 
-        const delBtn = document.createElement('button'); delBtn.className='chip ghost'; delBtn.textContent='Delete';
-        delBtn.onclick = async ()=>{
-          if(await confirmAction('Delete this link?')){
-            const idx = state.items.findIndex(x=>x.id===i.id);
-            if(idx>-1){ state.items.splice(idx,1); save(state); render(); }
-          }
-        };
-        row.appendChild(delBtn);
-
-        list.appendChild(row);
-      });
-
-      section.appendChild(list); root.appendChild(section);
+      grid.appendChild(card);
     });
+
+    root.appendChild(grid);
   }
 
   // ----- Events -----
@@ -497,6 +588,70 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       document.getElementById('newGroup').value=''; save(state); render(); renderGroupListManager(); renderGroupsSelect();
     }
   });
+
+  openLinkBtn.addEventListener('click', ()=>{
+    const item = state.items.find(x=>x.id===previewId);
+    if(!item) return;
+    window.open(item.url, '_blank');
+  });
+
+  copyLinkBtn.addEventListener('click', ()=>{
+    const item = state.items.find(x=>x.id===previewId);
+    if(!item) return;
+    navigator.clipboard?.writeText(item.url);
+    showInfo('Link copied');
+  });
+
+  shareLinkBtn.addEventListener('click', ()=>{
+    const item = state.items.find(x=>x.id===previewId);
+    if(!item) return;
+    if(navigator.share){
+      navigator.share({title:item.title, url:item.url});
+    }else{
+      navigator.clipboard?.writeText(item.url);
+      showInfo('Link copied');
+    }
+  });
+
+  editLinkBtn.addEventListener('click', ()=>{
+    const item = state.items.find(x=>x.id===previewId);
+    if(!item) return;
+    previewDlg.close();
+    editingId = item.id;
+    renderGroupsSelect();
+    groupSelect.value = item.group;
+    titleInput.value = item.title; urlInput.value = item.url;
+    linkDlgTitle.textContent = 'Edit Link';
+    linkDlg.showModal();
+  });
+
+  deleteLinkBtn.addEventListener('click', async ()=>{
+    const id = previewId;
+    previewDlg.close();
+    if(await confirmAction('Delete this link?')){
+      const idx = state.items.findIndex(x=>x.id===id);
+      if(idx>-1){ state.items.splice(idx,1); save(state); render(); }
+    }
+  });
+
+  previewFrame.addEventListener('load', ()=>{
+    try{
+      const doc = previewFrame.contentDocument;
+      if(doc && doc.body && doc.body.children.length){
+        previewFrame.hidden = false;
+        previewFallback.hidden = true;
+      }else{
+        previewFrame.hidden = true;
+        previewFallback.hidden = false;
+      }
+    }catch{
+      previewFrame.hidden = true;
+      previewFallback.hidden = false;
+    }
+  });
+  previewFrame.addEventListener('error', ()=>{ previewFrame.hidden=true; previewFallback.hidden=false; });
+
+  previewDlg.addEventListener('close', ()=>{ previewId=null; previewFrame.src=''; previewFrame.hidden=false; previewFallback.hidden=true; });
 
   linkForm.addEventListener('submit', (e)=>{
     const action = e.submitter?.value; if(action!=='save') return; e.preventDefault();
