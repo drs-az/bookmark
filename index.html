@@ -34,11 +34,10 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 .card{position:relative;padding:16px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--card-bg);box-shadow:var(--shadow);cursor:pointer}
 .card .title{font-weight:700;margin-bottom:8px}
 .card .count{position:absolute;top:8px;right:8px;font-size:14px;font-weight:700;background:var(--accent);color:var(--accent-fg);border-radius:999px;padding:2px 8px}
-.links{margin-top:12px;display:none;flex-direction:column;gap:8px}
-.card.open .links{display:flex}
 .linkRow{display:flex;align-items:center;gap:8px}
 .openBtn{appearance:none;border:none;border-radius:8px;background:var(--accent);color:var(--accent-fg);padding:8px 10px;cursor:pointer}
 .linkTitle{flex:1;text-align:left;appearance:none;border:1.5px solid var(--border);border-radius:8px;background:var(--card-bg);padding:8px;cursor:pointer;font:inherit;color:var(--fg)}
+#categoryLinks{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 
 /* Empty state */
 .empty{margin:28vh 0 0; text-align:center; color:var(--muted)}
@@ -64,9 +63,11 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
 .btn{appearance:none; border:none; padding:12px 16px; border-radius:14px; font-weight:800; cursor:pointer}
 .btn.primary{background:var(--accent); color:var(--accent-fg)}
 .btn.ghost{background:#eee; color:#111}
-    .previewPane{position:relative;width:100%;height:60vh;border-radius:14px;overflow:hidden}
-    .previewPane iframe{width:100%;height:100%;border:none;border-radius:14px}
-    #previewFallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700}
+.actions .btn{flex:1}
+.previewPane{position:relative;width:100%;height:60vh;border-radius:14px;overflow:hidden}
+.previewPane iframe{width:100%;height:100%;border:none;border-radius:14px}
+#previewFallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700}
+#previewFallback[hidden]{display:none}
 
 .mutelink{font-size:14px; color:var(--muted); text-decoration:underline; cursor:pointer}
 
@@ -122,16 +123,23 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
         <iframe id="previewFrame"></iframe>
         <div id="previewFallback" hidden>Link Preview Not Available</div>
       </div>
-      <div class="row">
-        <button class="btn primary" id="openLinkBtn" type="button">Open</button>
-        <button class="btn ghost" id="copyLinkBtn" type="button">Copy Link</button>
-        <button class="btn ghost" id="shareLinkBtn" type="button">Share</button>
-        <button class="btn ghost" id="editLinkBtn" type="button">Edit</button>
-        <button class="btn ghost" id="deleteLinkBtn" type="button">Delete</button>
-      </div>
+        <div class="row actions">
+          <button class="btn primary" id="openLinkBtn" type="button">Open</button>
+          <button class="btn ghost" id="copyLinkBtn" type="button">Copy</button>
+          <button class="btn ghost" id="shareLinkBtn" type="button">Share</button>
+          <button class="btn ghost" id="editLinkBtn" type="button">Edit</button>
+          <button class="btn ghost" id="deleteLinkBtn" type="button">Delete</button>
+        </div>
     </div>
-  </dialog>
-  <!-- Group Manager Modal -->  <dialog id="groupDlg">
+    </dialog>
+    <!-- Category Links Modal -->
+    <dialog id="categoryDlg">
+      <div class="modal">
+        <h3 id="categoryTitle"></h3>
+        <div id="categoryLinks"></div>
+      </div>
+    </dialog>
+    <!-- Group Manager Modal -->  <dialog id="groupDlg">
     <form method="dialog" class="modal" id="groupForm">
       <h3>Groups</h3>
       <div id="groupList" class="list" style="margin:8px 0 14px"></div>
@@ -262,15 +270,18 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
   const urlInput = document.getElementById('urlInput');
   const manageGroupsBtn = document.getElementById('manageGroupsBtn');
 
-  const previewDlg = document.getElementById('previewDlg');
-  const previewTitle = document.getElementById('previewTitle');
-  const previewFrame = document.getElementById('previewFrame');
-  const previewFallback = document.getElementById('previewFallback');
-  const openLinkBtn = document.getElementById('openLinkBtn');
-  const copyLinkBtn = document.getElementById('copyLinkBtn');
-  const shareLinkBtn = document.getElementById('shareLinkBtn');
-  const editLinkBtn = document.getElementById('editLinkBtn');
-  const deleteLinkBtn = document.getElementById('deleteLinkBtn');
+    const previewDlg = document.getElementById('previewDlg');
+    const previewTitle = document.getElementById('previewTitle');
+    const previewFrame = document.getElementById('previewFrame');
+    const previewFallback = document.getElementById('previewFallback');
+    const openLinkBtn = document.getElementById('openLinkBtn');
+    const copyLinkBtn = document.getElementById('copyLinkBtn');
+    const shareLinkBtn = document.getElementById('shareLinkBtn');
+    const editLinkBtn = document.getElementById('editLinkBtn');
+    const deleteLinkBtn = document.getElementById('deleteLinkBtn');
+    const categoryDlg = document.getElementById('categoryDlg');
+    const categoryTitle = document.getElementById('categoryTitle');
+    const categoryLinks = document.getElementById('categoryLinks');
 
   const resetDemo = document.getElementById('resetDemo');
 
@@ -319,6 +330,32 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       }, {once:true});
     });
   }
+
+
+  function showCategory(group){
+    categoryTitle.textContent = group;
+    categoryLinks.innerHTML = '';
+    state.items.filter(i=>i.group===group).forEach(i=>{
+      const row = document.createElement('div');
+      row.className = 'linkRow';
+
+      const openBtn = document.createElement('button');
+      openBtn.className = 'openBtn';
+      openBtn.textContent = '🚀';
+      openBtn.onclick = (e)=>{ e.stopPropagation(); categoryDlg.close(); window.open(i.url, '_blank'); };
+      row.appendChild(openBtn);
+
+      const titleBtn = document.createElement('button');
+      titleBtn.className = 'linkTitle';
+      titleBtn.textContent = i.title;
+      titleBtn.onclick = (e)=>{ e.stopPropagation(); categoryDlg.close(); showPreview(i); };
+      row.appendChild(titleBtn);
+
+      categoryLinks.appendChild(row);
+    });
+    categoryDlg.showModal();
+  }
+
 
   function showPreview(item){
     previewId = item.id;
@@ -396,43 +433,20 @@ input, select{width:100%; padding:12px 14px; border-radius:14px; border:1.5px so
       const card = document.createElement('div');
       card.className = 'card';
 
+
       const title = document.createElement('div');
       title.className = 'title';
       title.textContent = groupName;
       card.appendChild(title);
+
 
       const count = document.createElement('span');
       count.className = 'count';
       count.textContent = state.items.filter(i=>i.group===groupName).length;
       card.appendChild(count);
 
-      const links = document.createElement('div');
-      links.className = 'links';
+      card.addEventListener('click', ()=>{ showCategory(groupName); });
 
-      state.items.filter(i=>i.group===groupName).forEach(i=>{
-        const row = document.createElement('div');
-        row.className = 'linkRow';
-
-        const openBtn = document.createElement('button');
-        openBtn.className = 'openBtn';
-        openBtn.textContent = '🚀';
-        openBtn.onclick = (e)=>{ e.stopPropagation(); window.open(i.url, '_blank'); };
-        row.appendChild(openBtn);
-
-        const titleBtn = document.createElement('button');
-        titleBtn.className = 'linkTitle';
-        titleBtn.textContent = i.title;
-        titleBtn.onclick = (e)=>{ e.stopPropagation(); showPreview(i); };
-        row.appendChild(titleBtn);
-
-        links.appendChild(row);
-      });
-
-      card.appendChild(links);
-      card.addEventListener('click', (e)=>{
-        if(e.target.closest('.openBtn') || e.target.closest('.linkTitle')) return;
-        card.classList.toggle('open');
-      });
 
       grid.appendChild(card);
     });
