@@ -33,7 +33,9 @@ h1{font-size:44px;margin:8px 0 16px;font-weight:800;letter-spacing:.3px}
 .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
 .card{position:relative;padding:16px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--card-bg);box-shadow:var(--shadow);cursor:pointer;aspect-ratio:1}
 .card .title{font-weight:700;margin-bottom:8px;margin-right:40px}
+
 .card .count{position:absolute;top:8px;right:8px;font-size:14px;font-weight:700;background:#fff;color:#000;border-radius:999px;padding:2px 8px}
+
 .linkRow{display:flex;align-items:center;gap:8px}
 .openBtn{appearance:none;border:none;border-radius:8px;background:transparent;padding:8px 10px;cursor:pointer}
 .linkTitle{flex:1;text-align:left;appearance:none;border:1.5px solid var(--border);border-radius:8px;background:var(--card-bg);padding:8px;cursor:pointer;font:inherit;color:var(--fg)}
@@ -64,7 +66,9 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
 .btn.primary{background:var(--accent); color:var(--accent-fg)}
 .btn.ghost{background:#eee; color:#111}
 .actions .btn{flex:1}
+
 #settingsForm .btn{background:#eee;color:#000}
+
 #categoryColor{position:absolute;top:16px;right:16px;width:32px;height:32px;border:none;padding:0;background:transparent;cursor:pointer}
 
 .mutelink{font-size:14px; color:var(--muted); text-decoration:underline; cursor:pointer}
@@ -120,6 +124,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       </div>
     </form>
   </dialog>
+
   <!-- Link Modal -->
   <dialog id="previewDlg">
     <div class="modal">
@@ -127,13 +132,16 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       <p id="previewNotes" style="margin-bottom:16px;white-space:pre-wrap"></p>
       <div class="row actions">
         <button class="btn ghost" id="openLinkBtn" type="button">Open</button>
+
         <button class="btn ghost" id="copyLinkBtn" type="button">Copy</button>
+
         <button class="btn ghost" id="shareLinkBtn" type="button">Share</button>
         <button class="btn ghost" id="editLinkBtn" type="button">Edit</button>
         <button class="btn ghost" id="deleteLinkBtn" type="button">Delete</button>
       </div>
     </div>
   </dialog>
+
     <!-- Category Links Modal -->
     <dialog id="categoryDlg">
       <div class="modal" id="categoryModalBox">
@@ -285,7 +293,9 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
 
     const previewDlg = document.getElementById('previewDlg');
     const previewTitle = document.getElementById('previewTitle');
+
     const previewNotes = document.getElementById('previewNotes');
+
     const openLinkBtn = document.getElementById('openLinkBtn');
     const copyLinkBtn = document.getElementById('copyLinkBtn');
     const shareLinkBtn = document.getElementById('shareLinkBtn');
@@ -302,7 +312,9 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
   let editingId = null;
   let previewId = null;
   let currentCategory = null;
+
   let returnToCategory = false;
+
   let unlocked = true;
   let passAttempts = 0;
   const passHash = localStorage.getItem(PASS_KEY);
@@ -360,6 +372,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       save(state);
       render();
     };
+
     state.items.filter(i=>i.group===group).forEach(i=>{
       const row = document.createElement('div');
       row.className = 'linkRow';
@@ -384,9 +397,11 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
   function showPreview(item){
     previewId = item.id;
     previewTitle.textContent = item.title;
+
     previewNotes.textContent = item.notes || '';
     previewNotes.hidden = !item.notes;
     returnToCategory = true;
+
     previewDlg.showModal();
   }
 
@@ -456,8 +471,10 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
     [...groupsWithItems].forEach(groupName=>{
       const card = document.createElement('div');
       card.className = 'card';
+
       const bg = state.groupColors[groupName];
       if(bg) card.style.background = bg;
+
 
       const title = document.createElement('div');
       title.className = 'title';
@@ -469,7 +486,9 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       count.textContent = state.items.filter(i=>i.group===groupName).length;
       card.appendChild(count);
 
+
       card.addEventListener('click', ()=>{ showCategory(groupName); });
+
 
       grid.appendChild(card);
     });
@@ -623,11 +642,14 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
   editLinkBtn.addEventListener('click', ()=>{
     const item = state.items.find(x=>x.id===previewId);
     if(!item) return;
+
     returnToCategory = false;
+
     previewDlg.close();
     editingId = item.id;
     renderGroupsSelect();
     groupSelect.value = item.group;
+
     titleInput.value = item.title; urlInput.value = item.url; notesInput.value = item.notes || '';
     linkDlgTitle.textContent = 'Edit Link';
     linkDlg.showModal();
@@ -635,10 +657,12 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
       linkDlg.removeEventListener('close', handler);
       if(currentCategory) showCategory(currentCategory);
     }, {once:true});
+
   });
 
   deleteLinkBtn.addEventListener('click', async ()=>{
     const id = previewId;
+
     returnToCategory = false;
     previewDlg.close();
     const ok = await confirmAction('Delete this link?');
@@ -651,6 +675,7 @@ input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; borde
 
   // Show fallback only if iframe fails to load
   previewDlg.addEventListener('close', ()=>{ previewId=null; if(returnToCategory){returnToCategory=false; showCategory(currentCategory);} });
+
 
   linkForm.addEventListener('submit', (e)=>{
     const action = e.submitter?.value; if(action!=='save') return; e.preventDefault();
